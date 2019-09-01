@@ -15,7 +15,7 @@ static uint32_t get_random_uniform_32bits_integer() {
 }
 
 /* Decomposes n*range modulo 2^32, such as n*range == i*2^32 + j, with 0 <= j < 2^32
- * Stores the result in i and j, telling the caller in which interval - A(i) or R(i), defined below - n*range is in.
+ * Stores the result in i and j, telling the caller in which interval - A(i) or B(i), defined below - n*range is in.
  */
 static void compute_interval(uint32_t n, uint32_t range, uint32_t * i, uint32_t * j) {
     // We need 64 bits to store the result of the n*range multiplication.
@@ -48,14 +48,13 @@ int lemire_rng(uint32_t range, uint32_t * result) {
      * Here's how it works:
      * [0, range*2^32[ is divided into 'range' intervals of the form I(i) = [i * 2^32, (i+1) * 2^32[ (with 0 <= i < range)
      * Each I(i) interval is then subdivided in 2:
-     *   R(i) = [i * 2^32, i * 2^32 + 2^32 % range[  -- possibly empty if 'range' is a power of 2
-     *   A(i) = [i * 2^32 + 2^32 % range, (i+1) * 2^32[
-     * Now, let's define the set U = { n in [0, 2^32[ such as f(n) is in not in any of the R(i) intervals }
+     *   A(i) = [i * 2^32, i * 2^32 + 2^32 % range[  -- possibly empty if 'range' is a power of 2
+     *   B(i) = [i * 2^32 + 2^32 % range, (i+1) * 2^32[
+     * Now, let's define the set U = { n in [0, 2^32[ such as f(n) is in not in any of the A(i) intervals }
      * The main result from Lemire is that if 'n' is uniformly distributed in U, then g(f(n)) is uniformly distributed in [0, range[.
      *
      * Building a uniform distribution on U is done by using a uniform distribution on [0, 2^32[, discarding integers n for which f(n) fall
-     * into any of the R(i) intervals (rejection sampling, using the definition of U).
-     * Note for the reader: for A(i) and R(i), 'A' is for 'Accept', and 'R' is for 'Reject'.
+     * into any of the A(i) intervals (rejection sampling, using the definition of U).
      * 
      * Given a random 32 bits number 'n', we decompose f(n) modulo 2^32, to do the rejection sampling:
      * f(n) = n*range = i*2^32 + j
@@ -67,15 +66,15 @@ int lemire_rng(uint32_t range, uint32_t * result) {
     compute_interval(n, range, &i, &j);
     /* We have n*range == i * 2^32 + j
      *
-     * This decomposition allows us to determine if f(n) falls in A(i) or in R(i), necessary to implement the rejection sampling.
-     * f(n) being in R(i) is equivalent to j being in [0, 2^32 % range[
+     * This decomposition allows us to determine if f(n) falls in A(i) or in B(i), necessary to implement the rejection sampling.
+     * f(n) being in A(i) is equivalent to j being in [0, 2^32 % range[
      */
 
     /* The following if block is not required, but removes the need for a division in a lot of cases.
      * This is especially true when 'range' is relatively small compared to 2^32.
      */
     if (j >= range) {
-        // j >= range implies that j > (2^32 % range), so f(n) is not in the R(i) interval. No rejection needed!
+        // j >= range implies that j > (2^32 % range), so f(n) is not in the A(i) interval. No rejection needed!
         *result = i;
         return 0;
     }
